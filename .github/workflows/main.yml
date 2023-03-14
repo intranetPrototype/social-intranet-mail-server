@@ -1,0 +1,35 @@
+name: Bewerungsprojekt_Container_Workflow
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Checkout social-intranet-mail-server GitHub Action"
+        uses: actions/checkout@main
+
+      - name: "Login via Azure CLI"
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: "Create .env.production file"
+        run: |
+          touch .env.production
+          echo DATABASE_URL="postgresql://${{ secrets.POSTGRES_USER }}@${{ secrets.POSTGRES_DB }}:${{ secrets.POSTGRES_PASSWORD }}@${{ secrets.POSTGRES_DB }}.postgres.database.azure.com:5432/${{ secrets.POSTGRES_DB }}?sslmode=require" >> .env.production
+          echo ACCESS_TOKEN_SECRET="${{ secrets.ACCESS_TOKEN_SECRET }}" >> .env.production
+          echo REFRESH_TOKEN_SECRET="${{ secrets.REFRESH_TOKEN_SECRET }}" >> .env.production"
+          echo CONFIRM_TOKEN_SECRET="${{ secrets.CONFIRM_TOKEN_SECRET }}" >> .env.production"
+
+      - name: "Build and push Image"
+        uses: azure/docker-login@v1
+        with:
+          login-server: ${{ secrets.REGISTRY_LOGIN_SERVER }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+      - run: |
+          docker build -t ${{ secrets.REGISTRY_LOGIN_SERVER }}/bwp-mail-server:${{ github.sha }} .
+          docker push ${{ secrets.REGISTRY_LOGIN_SERVER }}/bwp-mail-server:${{ github.sha }}
